@@ -96,7 +96,7 @@ nid001008      1    standard        idle  256   2:64:2 244046        0      1   
 {: .output}
 
 > ## Explore a compute node
-> Let’s look at the resources available on the compute nodes where your jobs will actually run. Try running this
+> Let us look at the resources available on the compute nodes where your jobs will actually run. Try running this
 > command to see the name, CPUs and memory available on the worker nodes (the instructors will give you the ID of
 > the compute node to use):
 > ```
@@ -133,51 +133,63 @@ nid001008      1    standard        idle  256   2:64:2 244046        0      1   
 
 ### Header section: `#SBATCH`
 
-As for most other scheduler systems, job submission scripts in Slurm consist of a header section with the
+As with most other scheduler systems, job submission scripts in Slurm consist of a header section with the
 shell specification and options to the submission command (`sbatch` in this case) followed by the body of
 the script that actually runs the commands you want. In the header section, options to `sbatch` should 
 be prepended with `#SBATCH`.
 
-Here is a simple example script that runs the `xthi` program, which shows process and thread placement, across
-two nodes.
+Here is a simple example script that runs the `xthi` program, which shows
+process and thread placement, Here we consider only MPI and assume there
+in no OpenMP involved.
+
+The intention is to run using two nodes (nodes will always be allocated on
+and exclusive basis) and use 128 MPI tasks per node (i.e., one per
+physical core).
+
 
 ```
 #!/bin/bash
-#SBATCH --job-name=my_mpi_job
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=128
-#SBATCH --cpus-per-task=1
-#SBATCH --time=0:10:0
+
 #SBATCH --partition=standard
 #SBATCH --qos=standard
-#SBATCH --account=ta004
+#SBATCH --time=00:02:00
 
-module load xthi
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=128
 
-export OMP_NUM_THREADS=1
+#SBATCH --hint=nomultithread
+#SBATCH --distribution=block:cyclic
+
+# Load the default programming environment, and the xthi utility
+module load epcc-job-env
+module load xthi/1.0
 
 # srun to launch the executable
-srun --cpu-bind=cores xthi
+srun xthi
 ```
 {: .language-bash}
 
 The options shown here are:
 
-* `--job-name=my_mpi_job` - Set the name for the job that will be displayed in Slurm output
-* `--nodes=2` - Select two nodes for this job
-* `--ntasks-per-node=128` - Set 128 parallel processes per node (usually corresponds to MPI ranks)
-* `--cpus-per-task=1` - Number of cores to allocate per parallel process 
-* `--time=0:10:0` - Set 10 minutes maximum walltime for this job
-* `--partition=standard` - Submit to the standard set of nodes
+* `--partition=standard` - Submit to the standard set of nodes.
 * `--qos=standard` - Submit with the standard quality of service settings.
+* `--time=00:02:00` - Set wall clock time limit (here 2 minutes).
+* `--hint=nomultithread` - Base placement on 128 physical cores per node.
+* `--distribution=block:cyclic` - Set inter-node:intra-node MPI distribition.
+* `--nodes=2` - Request two nodes for this job
+* `--ntasks-per-node=128` - Use 128 parallel processes per node (MPI ranks)
+
+Other options include (there are many)
+* `--job-name=my_mpi_job` - Set the name for the job that will be displayed in Slurm output
 * `--account=t01` - Charge the job to the `t01` budget
 
 We will discuss the `srun` command further below.
 
 ### Submitting jobs using `sbatch`
 
-You use the `sbatch` command to submit job submission scripts to the scheduler. For example, if the
-above script was saved in a file called `test_job.slurm`, you would submit it with:
+You use the `sbatch` command to submit job submission scripts to the scheduler.
+For example, if the above script was saved in a file called `test_job.slurm`,
+you would submit it with:
 
 ```
 auser@login01-nmn:~> sbatch test_job.slurm
@@ -194,39 +206,21 @@ Slurm reports back with the job ID for the job you have submitted
 > If you do not specify job options, what are the defaults for Slurm on ARCHER2? Submit jobs to find out
 > what the defaults are for:
 > 
-> 1. Budget (or Account) the job is charged to?
-> 2. Tasks per node?
-> 3. Number of nodes?
-> 4. Walltime? (This one is hard!)
+> 1. The number of nodes used by the job?
+> 2. The number of tasks per node?
+> 3. The wall time limit? (Hint: you may need the command: `sacct`)
+> 4. What other options can be ommited without error? 
 > 
 > > ## Solution
 > > 
-> > (1) Budget: None - fails if submitted without a budget specified
+> > (1) If `--nodes` is omitted, the default is 1 node.
 > >
-> > You can get the answers to 2. and 3. this with the following script (once you have realised that you must
-> >specify a budget!):
-> > 
-> > ```
-> > #!/bin/bash
-> > #SBATCH --job-name=my_mpi_job
-> > #SBATCH --account=ta004
+> > (2) If `--ntasks-per-node` is omitted, the default is 1 task per node.
 > >
-> > echo "Nodes: $SLURM_JOB_NUM_NODES"
-> > echo "Tasks per node: $SLURM_NTASKS_PER_NODE"
-> > module load xthi
-> > 
-> > export OMP_NUM_THREADS=1
-> > 
-> > srun --cpu-bind=cores xthi
-> > ```
-> > {: .language-bash}
-> > 
-> > (2) Tasks per node: 1
+> > (3) Check `man sacct` and look for the time limit field.
 > >
-> > (3) Number of nodes: 1
-> >
-> > Getting the default time limit is more difficult - we need to use `sacct` to query the time limit set for
-> > the job. For example, if the job ID was "12345", then we could query the time limit with:
+> > If we had a job with jobid 12345, then we could query the time limit
+> > for that particular job with, e.g.,
 > > 
 > > ```
 > > auser@login01-nmn:~> sacct -o "TimeLimit" -j 12345
@@ -235,11 +229,12 @@ Slurm reports back with the job ID for the job you have submitted
 > > ```
 > >  Timelimit 
 > > ---------- 
-> >  UNLIMITED
+> >   00:02:00
 > > ```
 > > {: .output}
 > >
-> > (4) Walltime: Unlimited
+> > (4) A `--partition` must be specified, and a `--qos` must be specifed. An
+> >     error will be generate at the point of submission if either is omitted.
 > {: .solution}
 {: .challenge}
 
@@ -275,6 +270,7 @@ it stops them immediately.
 > {: .solution}
 {: .challenge}
 -->
+
 ### Running parallel applications using `srun`
 
 Once past the header section your script consists of standard shell commands required to run your
@@ -285,75 +281,87 @@ script usually contains commands to:
 * Set appropriate environment variables (you should always set `OMP_NUM_THREADS`, even if you are
   not using OpenMP you should set this to `1`)
 
-After this you will usually launch your parallel program using the `srun` command. At its simplest,
-`srun` only needs 1 argument to specify the correct binding of processes to cores (it will use the
-values supplied to `sbatch` to work out how many parallel processes to launch). In the example above,
-our `srun` command simply looks like:
+After this you will usually launch your parallel program using the
+`srun` command. At its simplest, `srun` does not require any arguments
+(it will use values supplied to `sbatch` to work out how many parallel
+processes to launch). In the example above, our `srun` command simply
+looks like:
 
 ```
-srun --cpu-bind=cores xthi
+srun xthi
 ```
 {: .language-bash}
 
-> ## Underpopulation of nodes
-> You may often want to *underpopulate* nodes on ARCHER2 to access more memory or more memory 
-> bandwidth per task. Can you state the `sbatch` options you would use to run `xthi`:
+> ## Fewer tasks then cores
+> You may want to run fewer MPI tasks per node than there are cores per node
+> on ARCHER2 to access more memory, or more memory bandwidth, per task.
+> This requires the option ``--cpus-per-task`` to specify how many "cpus"
+> (in this context, cores) are allocated to each MPI task.
+> Can you determine the `sbatch` options you would use to run `xthi`:
 > 
 > 1. On 4 nodes with 64 tasks per node?
-> 2. On 8 nodes with 2 tasks per node, 1 task per socket?
-> 3. On 4 nodes with 32 tasks per node, ensuring an even distribution across the 8 NUMA regions
-> on the node?
+> 2. On 2 nodes with 2 tasks per node, 1 task per socket?
+> 3. On 4 nodes with 8 tasks per node, ensuring an even distribution across
+>    the 8 NUMA regions on the node?
 > 
-> Once you have your answers run them in job scripts and check that the binding of tasks to 
+> Once you have your answers run them in job scripts and check that the
+> placement on
 > nodes and cores output by `xthi` is what you expect.
 > 
 > > ## Solution
 > > 1. `--nodes=4 --ntasks-per-node=64`
-> > 2. `--nodes=8 --ntasks-per-node=2 --ntasks-per-socket=1`
-> > 3. `--nodes=4 --ntasks-per-node=32 --ntasks-per-socket=16 --cpus-per-task=4`
+> > 2. `--nodes=2 --ntasks-per-node=2 --cpus-per-task=64`
+> > 3. `--nodes=4 --ntasks-per-node=8`
 > {: .solution}
 {: .challenge}
 
+
 ### Hybrid MPI and OpenMP jobs
 
-When running hybrid MPI (with the individual tasks also known as ranks or processes) and OpenMP
-(with multiple threads) jobs you need to leave free cores between the parallel tasks launched
-using `srun` for the multiple OpenMP threads that will be associated with each MPI task.
+When running hybrid MPI (with the individual tasks also known as ranks or
+processes) and OpenMP (with multiple threads) jobs you need to leave free
+cores between the parallel tasks launched using `srun` for the multiple
+OpenMP threads that will be associated with each MPI task.
 
-As we saw above, you can use the options to `sbatch` to control how many parallel tasks are
-placed on each compute node and can use the `--cpus-per-task` option to set the stride 
-between parallel tasks to the right value to accommodate the OpenMP threads - the value
-for `--cpus-per-task` should usually be the same as that for `OMP_NUM_THREADS`. Finally,
-you need to specify `--threads-per-core=1` to ensure that the threads use physical
-cores rather than SMT (hardware threading).
+As we saw above, you can use the options to `sbatch` to control how many
+parallel tasks are placed on each compute node and can use the
+`--cpus-per-task` option to set the stride between parallel tasks
+to the right value to accommodate the OpenMP threads. The value
+of `--cpus-per-task` should usually be the same as that for
+`OMP_NUM_THREADS`.
 
-As an example, consider the job script below that runs across 2 nodes with 8 MPI tasks
-per node and 16 OpenMP threads per MPI task (so all 256 cores across both nodes are used).
+As an example, consider the job script below that runs across 2 nodes with
+8 MPI tasks per node and 16 OpenMP threads per MPI task (so all 256 cores
+are used).
+Here we use the standard OpenMP control setting `OMP_PLACES=cores`
+to specify that placement should be on the basis of cores.
 
 ```
 #!/bin/bash
-#SBATCH -job-name=my_hybrid_job
+
+#SBATCH --partition=standard
+#SBATCH --qos=standard
+#SBATCH --time=00:10:00
+
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=8
 #SBATCH --cpus-per-task=16
-#SBATCH --threads-per-core=1
-#SBATCH --time=0:10:0
-#SBATCH --partition=standard
-#SBATCH --qos=standard
-#SBATCH --account=t01
 
-module load xthi
+#SBATCH --hint=nomultithread
+#SBATCH --distribution=block:cyclic
 
+module load epcc-job-env
+module load xthi/1.0
+
+export OMP_PLACES=cores
 export OMP_NUM_THREADS=16
 
-# Load modules, etc.
-# srun to launch the executable
-srun --cpu-bind=cores xthi
+srun xthi
 ```
 {: .language-bash}
 
 Each ARCHER2 compute node is made up of 8 NUMA (*Non Uniform Memory Access*) regions (4 per socket) 
-with 16 cores in each region. Programs where the threads of a task span multiple NUMA regions
+with 16 cores in each region. Programs where the threads span multiple NUMA regions
 are likely to be *less* efficient so we recommend using thread counts that fit well into the
 ARCHER2 compute node layout. Effectively, this means one of the following options for nodes
 where all cores are used:
@@ -362,6 +370,44 @@ where all cores are used:
 * 16 MPI tasks per node and 8 OpenMP threads per task: equivalent to 2 MPI tasks per NUMA region
 * 32 MPI tasks per node and 4 OpenMP threads per task: equivalent to 4 MPI tasks per NUMA region
 * 64 MPI tasks per node and 2 OpenMP threads per task: equivalent to 8 MPI tasks per NUMA region 
+
+> ## Two hardware threads per core
+>
+> The `--hint=nomultithread` asks SLURM to ignore the possibility of running
+> two threads per core. If we remove this option, this makes available  256
+> "cpus" per node (2 threads per core in hardware). Can you write a script
+> to run 8 MPI tasks with 1 task per NUMA region rinning 32 OpenMP threads?
+> Note: physical cores appear as affinity 0-127, while the extra "logical"
+> cores are numbered 128-255. Logical cores 0 and 128 occupy the same physical
+> core etc.
+> 
+>> ## Solution
+>> ```
+>>
+>> #!/usr/bin/env bash
+>> 
+>> #SBATCH --partition=standard
+>> #SBATCH --time=00:20:00
+>> 
+>> #SBATCH --nodes=2
+>> #SBATCH --ntasks-per-node=8
+>> 
+>> #SBATCH --hint=multithread
+>> #SBATCH --distribution=block:cyclic
+>> 
+>> #SBATCH --cpus-per-task=32
+>> 
+>> module load epcc-job-env
+>> module load xthi/1.0
+>> 
+>> export OMP_PLACES=cores
+>> export OMP_NUM_THREADS=32
+>> 
+>> srun xthi
+>> ```
+> {: .solution}
+{: .challenge}
+
 
 ## STDOUT/STDERR from jobs
 
