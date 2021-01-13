@@ -1,6 +1,12 @@
+
+<img src="./img/archer2_logo.png"  width="355" height="100" align="left" /> <img src="./img/epcc_logo.jpg" align="right" width="133" height="100" />
+
+<br /><br /><br /><br />
+
 # ARCHER2 for package users
 
-This is not an official Carpentries lesson, but the Carpentries lesson template is excellent, so we are using it.
+The pages is available at
+https://epcced.github.io/2020-12-14-archer2-developers-online/
 
 ## Maintainer(s)
 
@@ -8,10 +14,4 @@ This is not an official Carpentries lesson, but the Carpentries lesson template 
 
 ## Authors
 
-A list of contributors to the lesson can be found in [AUTHORS](AUTHORS)
-
-## Citation
-
-To cite this lesson, please consult with [CITATION](CITATION)
-
-[lesson-example]: https://carpentries.github.io/lesson-example
+Archer2 CSE team.
