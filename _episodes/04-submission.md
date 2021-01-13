@@ -234,7 +234,8 @@ Slurm reports back with the job ID for the job you have submitted
 > > {: .output}
 > >
 > > (4) A `--partition` must be specified, and a `--qos` must be specifed. An
-> >     error will be generate at the point of submission if either is omitted.
+> >     error will be generated at the point of submission if either is
+> >     omitted.
 > {: .solution}
 {: .challenge}
 
@@ -376,7 +377,7 @@ where all cores are used:
 > The `--hint=nomultithread` asks SLURM to ignore the possibility of running
 > two threads per core. If we remove this option, this makes available  256
 > "cpus" per node (2 threads per core in hardware). Can you write a script
-> to run 8 MPI tasks with 1 task per NUMA region rinning 32 OpenMP threads?
+> to run 8 MPI tasks with 1 task per NUMA region running 32 OpenMP threads?
 > Note: physical cores appear as affinity 0-127, while the extra "logical"
 > cores are numbered 128-255. Logical cores 0 and 128 occupy the same physical
 > core etc.
@@ -443,32 +444,17 @@ For example, to execute `xthi` across all cores on two nodes (1 MPI task per cor
 OpenMP threading) within an interactive job you would issue the following commands:
 
 ```
-auser@login01-nmn:~> salloc --nodes=2 --ntasks-per-node=128 --cpus-per-task=1 --time=0:10:0 --account=t01
+auser@login01-nmn:~> salloc --nodes=2 --ntasks-per-node=128 --hint=nomultithread --time=00:10:00 --partition=standard --qos=standard
 salloc: Granted job allocation 24236
-auser@login01-nmn:~> module load xthi
+auser@login01-nmn:~> module load xthi/1.0
 auser@login01-nmn:~> srun xthi
 ```
 {: .language-bash}
 ```
-Hello from rank 242, thread 0, on nid001002. (core affinity = 46,174)
-Hello from rank 249, thread 0, on nid001002. (core affinity = 31,159)
-Hello from rank 225, thread 0, on nid001002. (core affinity = 28,156)
-Hello from rank 231, thread 0, on nid001002. (core affinity = 124,252)
-Hello from rank 233, thread 0, on nid001002. (core affinity = 29,157)
-Hello from rank 234, thread 0, on nid001002. (core affinity = 45,173)
-Hello from rank 240, thread 0, on nid001002. (core affinity = 14,142)
-Hello from rank 246, thread 0, on nid001002. (core affinity = 110,238)
-Hello from rank 248, thread 0, on nid001002. (core affinity = 15,143)
-Hello from rank 251, thread 0, on nid001002. (core affinity = 63,191)
-Hello from rank 252, thread 0, on nid001002. (core affinity = 79,207)
-Hello from rank 223, thread 0, on nid001002. (core affinity = 123,251)
-Hello from rank 71, thread 0, on nid001001. (core affinity = 120,248)
-Hello from rank 227, thread 0, on nid001002. (core affinity = 60,188)
-Hello from rank 243, thread 0, on nid001002. (core affinity = 62,190)
-Hello from rank 250, thread 0, on nid001002. (core affinity = 47,175)
-Hello from rank 53, thread 0, on nid001001. (core affinity = 86,214)
-
-...long output trimmed...
+Node    0, hostname nid001107, mpi 128, omp   1, executable xthi
+Node    1, hostname nid001108, mpi 128, omp   1, executable xthi
+Node    0, rank    0, thread   0, (affinity =    0)
+...
 ```
 {: .output}
 
