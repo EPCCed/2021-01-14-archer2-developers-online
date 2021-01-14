@@ -208,7 +208,7 @@ Slurm reports back with the job ID for the job you have submitted
 > 
 > 1. The number of nodes used by the job?
 > 2. The number of tasks per node?
-> 3. The wall time limit? (Hint: you may need the command: `sacct`)
+> 3. The wall time limit? (Hint: you may need the command: `sacct` or `sinfo`)
 > 4. What other options can be ommited without error? 
 > 
 > > ## Solution
@@ -229,7 +229,7 @@ Slurm reports back with the job ID for the job you have submitted
 > > ```
 > >  Timelimit 
 > > ---------- 
-> >   00:02:00
+> >   01:00:00
 > > ```
 > > {: .output}
 > >
